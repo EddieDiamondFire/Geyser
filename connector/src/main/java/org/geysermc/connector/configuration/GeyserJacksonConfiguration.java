@@ -25,16 +25,22 @@
 
 package org.geysermc.connector.configuration;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Getter;
 import lombok.Setter;
 import org.geysermc.connector.GeyserConnector;
 import org.geysermc.connector.common.serializer.AsteriskSerializer;
+import org.geysermc.connector.network.CIDRMatcher;
 
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -74,6 +80,9 @@ public abstract class GeyserJacksonConfiguration implements GeyserConfiguration 
     @JsonProperty("ping-passthrough-interval")
     private int pingPassthroughInterval = 3;
 
+    @JsonProperty("forward-player-ping")
+    private boolean forwardPlayerPing = false;
+
     @JsonProperty("max-players")
     private int maxPlayers = 100;
 
@@ -87,10 +96,14 @@ public abstract class GeyserJacksonConfiguration implements GeyserConfiguration 
     private boolean allowThirdPartyCapes = true;
 
     @JsonProperty("show-cooldown")
-    private boolean showCooldown = true;
+    private String showCooldown = "title";
 
     @JsonProperty("show-coordinates")
     private boolean showCoordinates = true;
+
+    @JsonDeserialize(using = EmoteOffhandWorkaroundOption.Deserializer.class)
+    @JsonProperty("emote-offhand-workaround")
+    private EmoteOffhandWorkaroundOption emoteOffhandWorkaround = EmoteOffhandWorkaroundOption.DISABLED;
 
     @JsonProperty("allow-third-party-ears")
     private boolean allowThirdPartyEars = false;
@@ -98,14 +111,14 @@ public abstract class GeyserJacksonConfiguration implements GeyserConfiguration 
     @JsonProperty("default-locale")
     private String defaultLocale = null; // is null by default so system language takes priority
 
-    @JsonProperty("cache-chunks")
-    private boolean cacheChunks = false;
-
     @JsonProperty("cache-images")
     private int cacheImages = 0;
 
     @JsonProperty("allow-custom-skulls")
     private boolean allowCustomSkulls = true;
+
+    @JsonProperty("add-non-bedrock-items")
+    private boolean addNonBedrockItems = true;
 
     @JsonProperty("above-bedrock-nether-building")
     private boolean aboveBedrockNetherBuilding = false;
@@ -119,8 +132,9 @@ public abstract class GeyserJacksonConfiguration implements GeyserConfiguration 
     private MetricsInfo metrics = new MetricsInfo();
 
     @Getter
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class BedrockConfiguration implements IBedrockConfiguration {
-        @AsteriskSerializer.Asterisk(sensitive = true)
+        @AsteriskSerializer.Asterisk(isIp = true)
         private String address = "0.0.0.0";
 
         @Setter
@@ -134,12 +148,43 @@ public abstract class GeyserJacksonConfiguration implements GeyserConfiguration 
 
         @JsonProperty("server-name")
         private String serverName = GeyserConnector.NAME;
+
+        @JsonProperty("compression-level")
+        private int compressionLevel = 6;
+
+        public int getCompressionLevel() {
+            return Math.max(-1, Math.min(compressionLevel, 9));
+        }
+
+        @JsonProperty("enable-proxy-protocol")
+        private boolean enableProxyProtocol = false;
+
+        @JsonProperty("proxy-protocol-whitelisted-ips")
+        private List<String> proxyProtocolWhitelistedIPs = Collections.emptyList();
+
+        @JsonIgnore
+        private List<CIDRMatcher> whitelistedIPsMatchers = null;
+
+        @Override
+        public List<CIDRMatcher> getWhitelistedIPsMatchers() {
+            // Effective Java, Third Edition; Item 83: Use lazy initialization judiciously
+            List<CIDRMatcher> matchers = this.whitelistedIPsMatchers;
+            if (matchers == null) {
+                synchronized (this) {
+                    this.whitelistedIPsMatchers = matchers = proxyProtocolWhitelistedIPs.stream()
+                            .map(CIDRMatcher::new)
+                            .collect(Collectors.toList());
+                }
+            }
+            return Collections.unmodifiableList(matchers);
+        }
     }
 
     @Getter
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RemoteConfiguration implements IRemoteConfiguration {
         @Setter
-        @AsteriskSerializer.Asterisk(sensitive = true)
+        @AsteriskSerializer.Asterisk(isIp = true)
         private String address = "auto";
 
         @Setter
@@ -154,6 +199,9 @@ public abstract class GeyserJacksonConfiguration implements GeyserConfiguration 
 
         @JsonProperty("use-proxy-protocol")
         private boolean useProxyProtocol = false;
+
+        @JsonProperty("forward-hostname")
+        private boolean forwardHost = false;
     }
 
     @Getter
@@ -170,6 +218,7 @@ public abstract class GeyserJacksonConfiguration implements GeyserConfiguration 
     }
 
     @Getter
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MetricsInfo implements IMetricsInfo {
         private boolean enabled = true;
 

@@ -30,19 +30,22 @@ import org.geysermc.connector.entity.*;
 import org.geysermc.connector.entity.living.*;
 import org.geysermc.connector.entity.living.animal.*;
 import org.geysermc.connector.entity.living.animal.horse.*;
-import org.geysermc.connector.entity.living.animal.tameable.*;
-import org.geysermc.connector.entity.living.merchant.*;
+import org.geysermc.connector.entity.living.animal.tameable.CatEntity;
+import org.geysermc.connector.entity.living.animal.tameable.ParrotEntity;
+import org.geysermc.connector.entity.living.animal.tameable.WolfEntity;
+import org.geysermc.connector.entity.living.merchant.AbstractMerchantEntity;
+import org.geysermc.connector.entity.living.merchant.VillagerEntity;
 import org.geysermc.connector.entity.living.monster.*;
-import org.geysermc.connector.entity.living.monster.raid.AbstractIllagerEntity;
-import org.geysermc.connector.entity.living.monster.raid.PillagerEntity;
-import org.geysermc.connector.entity.living.monster.raid.RaidParticipantEntity;
-import org.geysermc.connector.entity.living.monster.raid.SpellcasterIllagerEntity;
+import org.geysermc.connector.entity.living.monster.raid.*;
 import org.geysermc.connector.entity.player.PlayerEntity;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 public enum EntityType {
 
-    CHICKEN(AnimalEntity.class, 10, 0.7f, 0.4f),
+    CHICKEN(ChickenEntity.class, 10, 0.7f, 0.4f),
     COW(AnimalEntity.class, 11, 1.4f, 0.9f),
     PIG(PigEntity.class, 12, 0.9f),
     SHEEP(SheepEntity.class, 13, 1.3f, 0.9f),
@@ -52,7 +55,7 @@ public enum EntityType {
     SQUID(SquidEntity.class, 17, 0.8f),
     RABBIT(RabbitEntity.class, 18, 0.5f, 0.4f),
     BAT(BatEntity.class, 19, 0.9f, 0.5f),
-    IRON_GOLEM(GolemEntity.class, 20, 2.7f, 1.4f),
+    IRON_GOLEM(IronGolemEntity.class, 20, 2.7f, 1.4f),
     SNOW_GOLEM(SnowGolemEntity.class, 21, 1.9f, 0.7f),
     OCELOT(OcelotEntity.class, 22, 0.35f, 0.3f),
     HORSE(HorseEntity.class, 23, 1.6f, 1.3965f),
@@ -68,7 +71,7 @@ public enum EntityType {
     ZOMBIE(ZombieEntity.class, 32, 1.8f, 0.6f, 0.6f, 1.62f),
     GIANT(GiantEntity.class, 32, 1.8f, 0.6f, 0.6f, 1.62f, "minecraft:zombie"),
     CREEPER(CreeperEntity.class, 33, 1.7f, 0.6f, 0.6f, 1.62f),
-    SKELETON(AbstractSkeletonEntity.class, 34, 1.8f, 0.6f, 0.6f, 1.62f),
+    SKELETON(SkeletonEntity.class, 34, 1.8f, 0.6f, 0.6f, 1.62f),
     SPIDER(SpiderEntity.class, 35, 0.9f, 1.4f, 1.4f, 1f),
     ZOMBIFIED_PIGLIN(ZombifiedPiglinEntity.class, 36, 1.95f, 0.6f, 0.6f, 1.62f, "minecraft:zombie_pigman"),
     SLIME(SlimeEntity.class, 37, 0.51f),
@@ -91,10 +94,10 @@ public enum EntityType {
     SHULKER(ShulkerEntity.class, 54, 1f, 1f),
     ENDERMITE(MonsterEntity.class, 55, 0.3f, 0.4f),
     AGENT(Entity.class, 56, 0f),
-    VINDICATOR(AbstractIllagerEntity.class, 57, 1.8f, 0.6f, 0.6f, 1.62f),
+    VINDICATOR(VindicatorEntity.class, 57, 1.8f, 0.6f, 0.6f, 1.62f),
     PILLAGER(PillagerEntity.class, 114, 1.8f, 0.6f, 0.6f, 1.62f),
     WANDERING_TRADER(AbstractMerchantEntity.class, 118, 1.8f, 0.6f, 0.6f, 1.62f),
-    PHANTOM(FlyingEntity.class, 58, 0.5f, 0.9f, 0.9f, 0.6f),
+    PHANTOM(PhantomEntity.class, 58, 0.5f, 0.9f, 0.9f, 0.6f),
     RAVAGER(RaidParticipantEntity.class, 59, 1.9f, 1.2f),
 
     ARMOR_STAND(ArmorStandEntity.class, 61, 1.975f, 0.5f),
@@ -112,7 +115,7 @@ public enum EntityType {
     TRIDENT(TridentEntity.class, 73, 0f, 0f, 0f, 0f, "minecraft:thrown_trident"),
     TURTLE(TurtleEntity.class, 74, 0.4f, 1.2f),
     CAT(CatEntity.class, 75, 0.35f, 0.3f),
-    SHULKER_BULLET(Entity.class, 76, 0.3125f),
+    SHULKER_BULLET(ThrowableEntity.class, 76, 0.3125f),
     FISHING_BOBBER(FishingHookEntity.class, 77, 0f, 0f, 0f, 0f, "minecraft:fishing_hook"),
     CHALKBOARD(Entity.class, 78, 0f),
     DRAGON_FIREBALL(ItemedFireballEntity.class, 79, 1.0f),
@@ -127,7 +130,7 @@ public enum EntityType {
     THROWN_ENDERPEARL(ThrowableEntity.class, 87, 0.25f, 0.25f, 0.25f, 0f, "minecraft:ender_pearl"),
     LEASH_KNOT(LeashKnotEntity.class, 88, 0.5f, 0.375f),
     WITHER_SKULL(WitherSkullEntity.class, 89, 0.3125f),
-    BOAT(BoatEntity.class, 90, 0.7f, 1.6f, 1.6f, 0.35f),
+    BOAT(BoatEntity.class, 90, 0.6f, 1.6f, 1.6f, 0.35f),
     WITHER_SKULL_DANGEROUS(WitherSkullEntity.class, 91, 0f),
     LIGHTNING_BOLT(Entity.class, 93, 0f),
     SMALL_FIREBALL(ItemedFireballEntity.class, 94, 0.3125f),
@@ -139,12 +142,12 @@ public enum EntityType {
     MINECART_SPAWNER(SpawnerMinecartEntity.class, 98, 0.7f, 0.98f, 0.98f, 0.35f, "minecraft:minecart"),
     MINECART_COMMAND_BLOCK(CommandBlockMinecartEntity.class, 100, 0.7f, 0.98f, 0.98f, 0.35f, "minecraft:command_block_minecart"),
     LINGERING_POTION(ThrowableEntity.class, 101, 0f),
-    LLAMA_SPIT(Entity.class, 102, 0.25f),
+    LLAMA_SPIT(ThrowableEntity.class, 102, 0.25f),
     EVOKER_FANGS(Entity.class, 103, 0.8f, 0.5f, 0.5f, 0f, "minecraft:evocation_fang"),
     EVOKER(SpellcasterIllagerEntity.class, 104, 1.95f, 0.6f, 0.6f, 0f, "minecraft:evocation_illager"),
     VEX(VexEntity.class, 105, 0.8f, 0.4f),
     ICE_BOMB(Entity.class, 106, 0f),
-    BALLOON(Entity.class, 107, 0f), //TODO
+    BALLOON(Entity.class, 107, 0f),
     PUFFERFISH(PufferFishEntity.class, 108, 0.7f, 0.7f),
     SALMON(AbstractFishEntity.class, 109, 0.5f, 0.7f),
     DROWNED(ZombieEntity.class, 110, 1.95f, 0.6f),
@@ -158,33 +161,54 @@ public enum EntityType {
     ZOGLIN(ZoglinEntity.class, 126, 1.4f, 1.3965f, 1.3965f, 0f, "minecraft:zoglin"),
     PIGLIN(PiglinEntity.class, 123, 1.95f, 0.6f, 0.6f, 0f, "minecraft:piglin"),
     PIGLIN_BRUTE(BasePiglinEntity.class, 127, 1.95f, 0.6f, 0.6f, 0f, "minecraft:piglin_brute"),
+    AXOLOTL(AxolotlEntity.class, 0, 0.42f, 0.7f, 0.7f, 0f, "minecraft:axolotl"),
+    GLOW_SQUID(GlowSquidEntity.class, 0, 0.8f, 0.8f, 0.8f, 0f, "minecraft:glow_squid"),
+    GOAT(GoatEntity.class, 0, 1.3f, 0.9f, 0.9f, 0f, "minecraft:goat"),
+    MARKER(Entity.class, 0, 0, 0, 0, 0, "minecraft:marker"), // Only should be used for ALL_JAVA_IDENTIFIERS
 
     /**
      * Item frames are handled differently since they are a block in Bedrock.
      */
     ITEM_FRAME(ItemFrameEntity.class, 0, 0, 0),
+    GLOW_ITEM_FRAME(ItemFrameEntity.class, 0, 0, 0),
 
     /**
-     * Not an entity in Bedrock, so we replace it with a Pillager
+     * Not an entity in Bedrock, so we replace it with an evoker
      */
-    ILLUSIONER(AbstractIllagerEntity.class, 114, 1.8f, 0.6f, 0.6f, 1.62f, "minecraft:pillager"),
+    ILLUSIONER(SpellcasterIllagerEntity.class, 104, 1.8f, 0.6f, 0.6f, 1.62f, "minecraft:evocation_illager"),
 
     /**
      * Not an entity in Bedrock, but used for the Ender Dragon's multiple hitboxes
      */
     ENDER_DRAGON_PART(EnderDragonPartEntity.class, 32, 0, 0, 0, 0, "minecraft:armor_stand");
 
+    /**
+     * A list of all Java identifiers for use with command suggestions
+     */
+    public static final String[] ALL_JAVA_IDENTIFIERS;
     private static final EntityType[] VALUES = values();
 
-    private Class<? extends Entity> entityClass;
+    static {
+        List<String> allJavaIdentifiers = new ArrayList<>();
+        for (EntityType type : VALUES) {
+            if (type == AGENT || type == BALLOON || type == CHALKBOARD || type == NPC || type == TRIPOD_CAMERA || type == ENDER_DRAGON_PART) {
+                continue;
+            }
+            allJavaIdentifiers.add("minecraft:" + type.name().toLowerCase());
+        }
+        ALL_JAVA_IDENTIFIERS = allJavaIdentifiers.toArray(new String[0]);
+    }
+
+    private final Class<? extends Entity> entityClass;
     private final int type;
     private final float height;
     private final float width;
     private final float length;
     private final float offset;
-    private String identifier;
+    private final String identifier;
 
     EntityType(Class<? extends Entity> entityClass, int type, float height) {
+        //noinspection SuspiciousNameCombination
         this(entityClass, type, height, height);
     }
 
@@ -198,8 +222,6 @@ public enum EntityType {
 
     EntityType(Class<? extends Entity> entityClass, int type, float height, float width, float length, float offset) {
         this(entityClass, type, height, width, length, offset, null);
-
-        this.identifier = "minecraft:" + name().toLowerCase();
     }
 
     EntityType(Class<? extends Entity> entityClass, int type, float height, float width, float length, float offset, String identifier) {
@@ -209,7 +231,7 @@ public enum EntityType {
         this.width = width;
         this.length = length;
         this.offset = offset + 0.00001f;
-        this.identifier = identifier;
+        this.identifier = identifier == null ? "minecraft:" + name().toLowerCase() : identifier;
     }
 
     public static EntityType getFromIdentifier(String identifier) {

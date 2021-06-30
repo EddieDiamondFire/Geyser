@@ -36,6 +36,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +76,7 @@ public class Metrics {
 
     private final static ObjectMapper mapper = new ObjectMapper();
 
-    private GeyserConnector connector;
+    private final GeyserConnector connector;
 
     /**
      * Class constructor.
@@ -151,8 +152,6 @@ public class Metrics {
      */
     private ObjectNode getServerData() {
         // OS specific data
-        int playerAmount = connector.getPlayers().size();
-
         String osName = System.getProperty("os.name");
         String osArch = System.getProperty("os.arch");
         String osVersion = System.getProperty("os.version");
@@ -162,7 +161,6 @@ public class Metrics {
 
         data.put("serverUUID", serverUUID);
 
-        data.put("playerAmount", playerAmount);
         data.put("osName", osName);
         data.put("osArch", osArch);
         data.put("osVersion", osVersion);
@@ -241,7 +239,7 @@ public class Metrics {
         }
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         GZIPOutputStream gzip = new GZIPOutputStream(outputStream);
-        gzip.write(str.getBytes("UTF-8"));
+        gzip.write(str.getBytes(StandardCharsets.UTF_8));
         gzip.close();
         return outputStream.toByteArray();
     }

@@ -28,6 +28,7 @@ package org.geysermc.connector.network.translators.collision;
 import com.nukkitx.math.vector.Vector3d;
 import com.nukkitx.math.vector.Vector3f;
 import com.nukkitx.math.vector.Vector3i;
+import com.nukkitx.protocol.bedrock.data.entity.EntityData;
 import com.nukkitx.protocol.bedrock.data.entity.EntityFlag;
 import com.nukkitx.protocol.bedrock.data.entity.EntityFlags;
 import com.nukkitx.protocol.bedrock.packet.MovePlayerPacket;
@@ -38,9 +39,13 @@ import org.geysermc.connector.entity.player.PlayerEntity;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.collision.translators.BlockCollision;
+import org.geysermc.connector.network.translators.world.block.BlockTranslator;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class CollisionManager {
 
@@ -66,6 +71,11 @@ public class CollisionManager {
      * This check doesn't allow players right up against the block, so they must be pushed slightly away.
      */
     public static final double COLLISION_TOLERANCE = 0.00001;
+    /**
+     * Trims Y coordinates when jumping to prevent rounding issues being sent to the server.
+     * The locale used is necessary so other regions don't use <code>,</code> as their decimal separator.
+     */
+    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#.#####", new DecimalFormatSymbols(Locale.ENGLISH));
 
     public CollisionManager(GeyserSession session) {
         this.session = session;
@@ -104,17 +114,14 @@ public class CollisionManager {
             } else {
                 playerPosition = session.getPlayerEntity().getPosition();
             }
-            playerBoundingBox = new BoundingBox(playerPosition.getX(), playerPosition.getY() + 0.9, playerPosition.getZ(), 0.6, 1.8, 0.6);
+            playerBoundingBox = new BoundingBox(playerPosition.getX(), playerPosition.getY() + 0.9, playerPosition.getZ(),
+                    EntityType.PLAYER.getWidth(), EntityType.PLAYER.getHeight(), EntityType.PLAYER.getLength());
         } else {
             // According to the Minecraft Wiki, when sneaking:
             // - In Bedrock Edition, the height becomes 1.65 blocks, allowing movement through spaces as small as 1.75 (2 - 1⁄4) blocks high.
             // - In Java Edition, the height becomes 1.5 blocks.
-            // TODO: Have this depend on the player's literal bounding box variable
-            if (session.isSneaking()) {
-                playerBoundingBox.setSizeY(1.5);
-            } else {
-                playerBoundingBox.setSizeY(1.8);
-            }
+            // Other instances have the player's bounding box become as small as 0.6 or 0.2.
+            playerBoundingBox.setSizeY(session.getPlayerEntity().getMetadata().getFloat(EntityData.BOUNDING_BOX_HEIGHT));
         }
     }
 
@@ -134,27 +141,22 @@ public class CollisionManager {
         Vector3d position = Vector3d.from(Double.parseDouble(Float.toString(bedrockPosition.getX())), javaY,
                 Double.parseDouble(Float.toString(bedrockPosition.getZ())));
 
-        if (session.getConnector().getConfig().isCacheChunks()) {
-            // With chunk caching, we can do some proper collision checks
-            updatePlayerBoundingBox(position);
+        updatePlayerBoundingBox(position);
 
-            // Correct player position
-            if (!correctPlayerPosition()) {
-                // Cancel the movement if it needs to be cancelled
-                recalculatePosition();
-                return null;
-            }
+        // Correct player position
+        if (!correctPlayerPosition()) {
+            // Cancel the movement if it needs to be cancelled
+            recalculatePosition();
+            return null;
+        }
 
-            position = Vector3d.from(playerBoundingBox.getMiddleX(),
-                    playerBoundingBox.getMiddleY() - (playerBoundingBox.getSizeY() / 2),
-                    playerBoundingBox.getMiddleZ());
-        } else {
-            // When chunk caching is off, we have to rely on this
-            // It rounds the Y position up to the nearest 0.5
-            // This snaps players to snap to the top of stairs and slabs like on Java Edition
-            // However, it causes issues such as the player floating on carpets
-            if (onGround) javaY = Math.ceil(javaY * 2) / 2;
-            position = position.up(javaY - position.getY());
+        position = Vector3d.from(playerBoundingBox.getMiddleX(),
+                playerBoundingBox.getMiddleY() - (playerBoundingBox.getSizeY() / 2),
+                playerBoundingBox.getMiddleZ());
+
+        if (!onGround) {
+            // Trim the position to prevent rounding errors that make Java think we are clipping into a block
+            position = Vector3d.from(position.getX(), Double.parseDouble(DECIMAL_FORMAT.format(position.getY())), position.getZ());
         }
 
         return position;
@@ -177,24 +179,24 @@ public class CollisionManager {
         session.sendUpstreamPacket(movePlayerPacket);
     }
 
-    public List<Vector3i> getPlayerCollidableBlocks() {
+    public List<Vector3i> getCollidableBlocks(BoundingBox box) {
         List<Vector3i> blocks = new ArrayList<>();
 
-        Vector3d position = Vector3d.from(playerBoundingBox.getMiddleX(),
-                playerBoundingBox.getMiddleY() - (playerBoundingBox.getSizeY() / 2),
-                playerBoundingBox.getMiddleZ());
+        Vector3d position = Vector3d.from(box.getMiddleX(),
+                box.getMiddleY() - (box.getSizeY() / 2),
+                box.getMiddleZ());
 
-        // Loop through all blocks that could collide with the player
-        int minCollisionX = (int) Math.floor(position.getX() - ((playerBoundingBox.getSizeX() / 2) + COLLISION_TOLERANCE));
-        int maxCollisionX = (int) Math.floor(position.getX() + (playerBoundingBox.getSizeX() / 2) + COLLISION_TOLERANCE);
+        // Loop through all blocks that could collide
+        int minCollisionX = (int) Math.floor(position.getX() - ((box.getSizeX() / 2) + COLLISION_TOLERANCE));
+        int maxCollisionX = (int) Math.floor(position.getX() + (box.getSizeX() / 2) + COLLISION_TOLERANCE);
 
         // Y extends 0.5 blocks down because of fence hitboxes
         int minCollisionY = (int) Math.floor(position.getY() - 0.5);
 
-        int maxCollisionY = (int) Math.floor(position.getY() + playerBoundingBox.getSizeY());
+        int maxCollisionY = (int) Math.floor(position.getY() + box.getSizeY());
 
-        int minCollisionZ = (int) Math.floor(position.getZ() - ((playerBoundingBox.getSizeZ() / 2) + COLLISION_TOLERANCE));
-        int maxCollisionZ = (int) Math.floor(position.getZ() + (playerBoundingBox.getSizeZ() / 2) + COLLISION_TOLERANCE);
+        int minCollisionZ = (int) Math.floor(position.getZ() - ((box.getSizeZ() / 2) + COLLISION_TOLERANCE));
+        int maxCollisionZ = (int) Math.floor(position.getZ() + (box.getSizeZ() / 2) + COLLISION_TOLERANCE);
 
         for (int y = minCollisionY; y < maxCollisionY + 1; y++) {
             for (int x = minCollisionX; x < maxCollisionX + 1; x++) {
@@ -205,6 +207,10 @@ public class CollisionManager {
         }
 
         return blocks;
+    }
+
+    public List<Vector3i> getPlayerCollidableBlocks() {
+        return getCollidableBlocks(playerBoundingBox);
     }
 
     /**
@@ -242,16 +248,43 @@ public class CollisionManager {
             }
         }
 
-        updateScaffoldingFlags();
+        updateScaffoldingFlags(true);
 
         return true;
     }
 
     /**
+     * @return true if the block located at the player's floor position plus 1 would intersect with the player,
+     * were they not sneaking
+     */
+    public boolean isUnderSlab() {
+        Vector3i position = session.getPlayerEntity().getPosition().toInt();
+        BlockCollision collision = CollisionTranslator.getCollisionAt(session, position.getX(), position.getY(), position.getZ());
+        if (collision != null) {
+            // Determine, if the player's bounding box *were* at full height, if it would intersect with the block
+            // at the current location.
+            playerBoundingBox.setSizeY(EntityType.PLAYER.getHeight());
+            boolean result = collision.checkIntersection(playerBoundingBox);
+            playerBoundingBox.setSizeY(session.getPlayerEntity().getMetadata().getFloat(EntityData.BOUNDING_BOX_HEIGHT));
+            return result;
+        }
+        return false;
+    }
+
+    /**
+     * @return if the player is currently in a water block
+     */
+    public boolean isPlayerInWater() {
+        return session.getConnector().getWorldManager().getBlockAt(session, session.getPlayerEntity().getPosition().toInt()) == BlockTranslator.JAVA_WATER_ID;
+    }
+
+    /**
      * Updates scaffolding entity flags
      * Scaffolding needs to be checked per-move since it's a flag in Bedrock but Java does it client-side
+     *
+     * @param updateMetadata whether we should update metadata if something changed
      */
-    public void updateScaffoldingFlags() {
+    public void updateScaffoldingFlags(boolean updateMetadata) {
         EntityFlags flags = session.getPlayerEntity().getMetadata().getFlags();
         boolean flagsChanged;
         boolean isSneakingWithScaffolding = (touchingScaffolding || onScaffolding) && session.isSneaking();
@@ -265,7 +298,7 @@ public class CollisionManager {
         flagsChanged |= flags.getFlag(EntityFlag.IN_SCAFFOLDING) != touchingScaffolding;
         flags.setFlag(EntityFlag.IN_SCAFFOLDING, touchingScaffolding);
 
-        if (flagsChanged) {
+        if (flagsChanged && updateMetadata) {
             session.getPlayerEntity().updateBedrockMetadata(session);
         }
     }

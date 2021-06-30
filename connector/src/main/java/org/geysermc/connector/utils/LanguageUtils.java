@@ -60,15 +60,17 @@ public class LanguageUtils {
     public static void loadGeyserLocale(String locale) {
         locale = formatLocale(locale);
         // Don't load the locale if it's already loaded.
-        if (LOCALE_MAPPINGS.containsKey(locale)) return;
+        if (LOCALE_MAPPINGS.containsKey(locale)) {
+            return;
+        }
 
         InputStream localeStream = GeyserConnector.class.getClassLoader().getResourceAsStream("languages/texts/" + locale + ".properties");
 
         // Load the locale
         if (localeStream != null) {
             Properties localeProp = new Properties();
-            try {
-                localeProp.load(new InputStreamReader(localeStream, StandardCharsets.UTF_8));
+            try (InputStreamReader reader = new InputStreamReader(localeStream, StandardCharsets.UTF_8)) {
+                localeProp.load(reader);
             } catch (Exception e) {
                 throw new AssertionError(getLocaleStringLog("geyser.language.load_failed", locale), e);
             }
@@ -113,7 +115,7 @@ public class LanguageUtils {
 
         // Try and get the key from the default locale
         if (formatString == null) {
-            properties = LOCALE_MAPPINGS.get(formatLocale(getDefaultLocale()));
+            properties = LOCALE_MAPPINGS.get(getDefaultLocale());
             formatString = properties.getProperty(key);
         }
 
@@ -125,7 +127,7 @@ public class LanguageUtils {
 
         // Final fallback
         if (formatString == null) {
-            formatString = key;
+            return key;
         }
 
         return MessageFormat.format(formatString.replace("'", "''").replace("&", "\u00a7"), values);
@@ -151,7 +153,10 @@ public class LanguageUtils {
      * @return the current default locale
      */
     public static String getDefaultLocale() {
-        if (CACHED_LOCALE != null) return CACHED_LOCALE; // We definitely know the locale the user is using
+        if (CACHED_LOCALE != null) {
+            return CACHED_LOCALE; // We definitely know the locale the user is using
+        }
+
         String locale;
         boolean isValid = true;
         if (GeyserConnector.getInstance() != null &&

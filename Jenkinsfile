@@ -35,8 +35,8 @@ pipeline {
                 rtMavenResolver(
                         id: "maven-resolver",
                         serverId: "opencollab-artifactory",
-                        releaseRepo: "release",
-                        snapshotRepo: "snapshot"
+                        releaseRepo: "maven-deploy-release",
+                        snapshotRepo: "maven-deploy-snapshot"
                 )
                 rtMavenRun(
                         pom: 'pom.xml',
@@ -92,8 +92,7 @@ pipeline {
         success {
             script {
                 if (env.BRANCH_NAME == 'master') {
-                    build propagate: false, wait: false, job: 'GeyserMC/Geyser-Fabric/java-1.16', parameters: [booleanParam(name: 'SKIP_DISCORD', value: true)]
-                    build propagate: false, wait: false, job: 'GeyserMC/GeyserAndroid/master', parameters: [booleanParam(name: 'SKIP_DISCORD', value: true)]
+                    build propagate: false, wait: false, job: 'GeyserMC/Geyser-Fabric/java-1.17', parameters: [booleanParam(name: 'SKIP_DISCORD', value: true)]
                     build propagate: false, wait: false, job: 'GeyserMC/GeyserConnect/master', parameters: [booleanParam(name: 'SKIP_DISCORD', value: true)]
                 }
             }

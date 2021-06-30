@@ -26,16 +26,14 @@
 package org.geysermc.connector.network.translators.java.entity;
 
 import com.github.steveice10.mc.protocol.packet.ingame.server.entity.ServerEntityStatusPacket;
-import com.nukkitx.protocol.bedrock.data.SoundEvent;
 import com.nukkitx.protocol.bedrock.data.LevelEventType;
+import com.nukkitx.protocol.bedrock.data.SoundEvent;
 import com.nukkitx.protocol.bedrock.data.entity.EntityData;
 import com.nukkitx.protocol.bedrock.data.entity.EntityEventType;
-import com.nukkitx.protocol.bedrock.packet.EntityEventPacket;
-import com.nukkitx.protocol.bedrock.packet.LevelEventPacket;
-import com.nukkitx.protocol.bedrock.packet.LevelSoundEvent2Packet;
-import com.nukkitx.protocol.bedrock.packet.SetEntityDataPacket;
-import com.nukkitx.protocol.bedrock.packet.SetEntityMotionPacket;
+import com.nukkitx.protocol.bedrock.data.inventory.ItemData;
+import com.nukkitx.protocol.bedrock.packet.*;
 import org.geysermc.connector.entity.Entity;
+import org.geysermc.connector.entity.LivingEntity;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.PacketTranslator;
@@ -47,9 +45,11 @@ public class JavaEntityStatusTranslator extends PacketTranslator<ServerEntitySta
 
     @Override
     public void translate(ServerEntityStatusPacket packet, GeyserSession session) {
-        Entity entity = session.getEntityCache().getEntityByJavaId(packet.getEntityId());
+        Entity entity;
         if (packet.getEntityId() == session.getPlayerEntity().getEntityId()) {
             entity = session.getPlayerEntity();
+        } else {
+            entity = session.getEntityCache().getEntityByJavaId(packet.getEntityId());
         }
         if (entity == null)
             return;
@@ -90,6 +90,7 @@ public class JavaEntityStatusTranslator extends PacketTranslator<ServerEntitySta
             case LIVING_HURT:
             case LIVING_HURT_SWEET_BERRY_BUSH:
             case LIVING_HURT_THORNS:
+            case LIVING_FREEZE:
                 entityEventPacket.setType(EntityEventType.HURT);
                 break;
             case LIVING_DEATH:
@@ -172,6 +173,11 @@ public class JavaEntityStatusTranslator extends PacketTranslator<ServerEntitySta
             case IRON_GOLEM_EMPTY_HAND:
                 entityEventPacket.setType(EntityEventType.GOLEM_FLOWER_WITHDRAW);
                 break;
+            case IRON_GOLEM_ATTACK:
+                if (entity.getEntityType() == EntityType.IRON_GOLEM) {
+                    entityEventPacket.setType(EntityEventType.ATTACK_START);
+                }
+                break;
             case RABBIT_JUMP_OR_MINECART_SPAWNER_DELAY_RESET:
                 if (entity.getEntityType() == EntityType.RABBIT) {
                     // This doesn't match vanilla Bedrock behavior but I'm unsure how to make it better
@@ -196,8 +202,38 @@ public class JavaEntityStatusTranslator extends PacketTranslator<ServerEntitySta
                 equipmentBreakPacket.setIdentifier("");
                 session.sendUpstreamPacket(equipmentBreakPacket);
                 return;
+            case PLAYER_SWAP_SAME_ITEM: // Not just used for players
+                if (entity instanceof LivingEntity) {
+                    LivingEntity livingEntity = (LivingEntity) entity;
+                    ItemData newMainHand = livingEntity.getOffHand();
+                    livingEntity.setOffHand(livingEntity.getHand());
+                    livingEntity.setHand(newMainHand);
+
+                    livingEntity.updateMainHand(session);
+                    livingEntity.updateOffHand(session);
+                } else {
+                    session.getConnector().getLogger().debug("Got status message to swap hands for a non-living entity.");
+                }
+                return;
+            case GOAT_LOWERING_HEAD:
+                if (entity.getEntityType() == EntityType.GOAT) {
+                    entityEventPacket.setType(EntityEventType.ATTACK_START);
+                }
+                break;
+            case GOAT_STOP_LOWERING_HEAD:
+                if (entity.getEntityType() == EntityType.GOAT) {
+                    entityEventPacket.setType(EntityEventType.ATTACK_STOP);
+                }
+                break;
+            case MAKE_POOF_PARTICLES:
+                if (entity instanceof LivingEntity) {
+                    entityEventPacket.setType(EntityEventType.DEATH_SMOKE_CLOUD);
+                }
+                break;
         }
 
-        session.sendUpstreamPacket(entityEventPacket);
+        if (entityEventPacket.getType() != null) {
+            session.sendUpstreamPacket(entityEventPacket);
+        }
     }
 }

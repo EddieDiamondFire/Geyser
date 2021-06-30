@@ -90,21 +90,22 @@ public class FileUtils {
      */
     public static File fileOrCopiedFromResource(File file, String name, Function<String, String> format) throws IOException {
         if (!file.exists()) {
+            //noinspection ResultOfMethodCallIgnored
             file.createNewFile();
-            FileOutputStream fos = new FileOutputStream(file);
-            InputStream input = GeyserConnector.class.getResourceAsStream("/" + name); // resources need leading "/" prefix
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                try (InputStream input = GeyserConnector.class.getResourceAsStream("/" + name)) { // resources need leading "/" prefix
+                    byte[] bytes = new byte[input.available()];
 
-            byte[] bytes = new byte[input.available()];
+                    //noinspection ResultOfMethodCallIgnored
+                    input.read(bytes);
 
-            input.read(bytes);
+                    for(char c : format.apply(new String(bytes)).toCharArray()) {
+                        fos.write(c);
+                    }
 
-            for(char c : format.apply(new String(bytes)).toCharArray()) {
-                fos.write(c);
+                    fos.flush();
+                }
             }
-
-            fos.flush();
-            input.close();
-            fos.close();
         }
 
         return file;
@@ -122,14 +123,13 @@ public class FileUtils {
             file.createNewFile();
         }
 
-        FileOutputStream fos = new FileOutputStream(file);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            for (char c : data) {
+                fos.write(c);
+            }
 
-        for (char c : data) {
-            fos.write(c);
+            fos.flush();
         }
-
-        fos.flush();
-        fos.close();
     }
 
     /**
@@ -152,7 +152,7 @@ public class FileUtils {
     public static InputStream getResource(String resource) {
         InputStream stream = FileUtils.class.getClassLoader().getResourceAsStream(resource);
         if (stream == null) {
-            throw new AssertionError(LanguageUtils.getLocaleStringLog("geyser.toolbox.fail.resource", resource));
+            throw new AssertionError("Unable to find resource: " + resource);
         }
         return stream;
     }
@@ -205,7 +205,8 @@ public class FileUtils {
         URL resource = FileUtils.class.getClassLoader().getResource("META-INF/reflections/" + path + "-reflections.xml");
         try (InputStream inputStream = resource.openConnection().getInputStream()) {
             reflections.merge(serializer.read(inputStream));
-        } catch (IOException e) { }
+        } catch (IOException ignored) {
+        }
 
         return reflections;
     }
@@ -232,9 +233,10 @@ public class FileUtils {
         try {
             int size = stream.available();
             byte[] bytes = new byte[size];
-            BufferedInputStream buf = new BufferedInputStream(stream);
-            buf.read(bytes, 0, bytes.length);
-            buf.close();
+            try (BufferedInputStream buf = new BufferedInputStream(stream)) {
+                //noinspection ResultOfMethodCallIgnored
+                buf.read(bytes, 0, bytes.length);
+            }
             return bytes;
         } catch (IOException e) {
             throw new RuntimeException("Error while trying to read input stream!");

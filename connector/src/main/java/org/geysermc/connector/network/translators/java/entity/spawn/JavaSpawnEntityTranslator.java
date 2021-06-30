@@ -32,6 +32,7 @@ import com.github.steveice10.mc.protocol.data.game.entity.type.EntityType;
 import com.github.steveice10.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnEntityPacket;
 import com.nukkitx.math.vector.Vector3f;
 import org.geysermc.connector.entity.*;
+import org.geysermc.connector.entity.player.PlayerEntity;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.PacketTranslator;
 import org.geysermc.connector.network.translators.Translator;
@@ -63,14 +64,24 @@ public class JavaSpawnEntityTranslator extends PacketTranslator<ServerSpawnEntit
             if (packet.getType() == EntityType.FALLING_BLOCK) {
                 entity = new FallingBlockEntity(packet.getEntityId(), session.getEntityCache().getNextEntityId().incrementAndGet(),
                         type, position, motion, rotation, ((FallingBlockData) packet.getData()).getId());
-            } else if (packet.getType() == EntityType.ITEM_FRAME) {
+            } else if (packet.getType() == EntityType.ITEM_FRAME || packet.getType() == EntityType.GLOW_ITEM_FRAME) {
                 // Item frames need the hanging direction
                 entity = new ItemFrameEntity(packet.getEntityId(), session.getEntityCache().getNextEntityId().incrementAndGet(),
                         type, position, motion, rotation, (HangingDirection) packet.getData());
             } else if (packet.getType() == EntityType.FISHING_BOBBER) {
                 // Fishing bobbers need the owner for the line
-                entity = new FishingHookEntity(packet.getEntityId(), session.getEntityCache().getNextEntityId().incrementAndGet(),
-                        type, position, motion, rotation, (ProjectileData) packet.getData());
+                int ownerEntityId = ((ProjectileData) packet.getData()).getOwnerId();
+                Entity owner = session.getEntityCache().getEntityByJavaId(ownerEntityId);
+                if (owner == null && session.getPlayerEntity().getEntityId() == ownerEntityId) {
+                    owner = session.getPlayerEntity();
+                }
+                // Java clients only spawn fishing hooks with a player as its owner
+                if (owner instanceof PlayerEntity) {
+                    entity = new FishingHookEntity(packet.getEntityId(), session.getEntityCache().getNextEntityId().incrementAndGet(),
+                            type, position, motion, rotation, (PlayerEntity) owner);
+                } else {
+                    return;
+                }
             } else if (packet.getType() == EntityType.BOAT) {
                 // Initial rotation is incorrect
                 entity = new BoatEntity(packet.getEntityId(), session.getEntityCache().getNextEntityId().incrementAndGet(),

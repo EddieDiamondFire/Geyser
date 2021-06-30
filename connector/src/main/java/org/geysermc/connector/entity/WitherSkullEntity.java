@@ -35,6 +35,8 @@ public class WitherSkullEntity extends ItemedFireballEntity {
 
     public WitherSkullEntity(long entityId, long geyserId, EntityType entityType, Vector3f position, Vector3f motion, Vector3f rotation) {
         super(entityId, geyserId, entityType, position, motion, rotation);
+
+        this.futureTicks = 1;
     }
 
     @Override
@@ -44,7 +46,7 @@ public class WitherSkullEntity extends ItemedFireballEntity {
 
     @Override
     public void updateBedrockMetadata(EntityMetadata entityMetadata, GeyserSession session) {
-        if (entityMetadata.getId() == 7) {
+        if (entityMetadata.getId() == 8) {
             boolean newIsCharged = (boolean) entityMetadata.getValue();
             if (newIsCharged != isCharged) {
                 isCharged = newIsCharged;

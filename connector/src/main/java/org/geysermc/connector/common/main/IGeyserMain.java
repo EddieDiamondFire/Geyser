@@ -52,7 +52,7 @@ public class IGeyserMain {
      * @return The formatted message
      */
     private String createMessage() {
-        String message = "";
+        StringBuilder message = new StringBuilder();
 
         InputStream helpStream = IGeyserMain.class.getClassLoader().getResourceAsStream("languages/run-help/" + Locale.getDefault().toString() + ".txt");
 
@@ -68,10 +68,10 @@ public class IGeyserMain {
             line = line.replace("${plugin_type}", this.getPluginType());
             line = line.replace("${plugin_folder}", this.getPluginFolder());
 
-            message += line + "\n";
+            message.append(line).append("\n");
         }
 
-        return message;
+        return message.toString();
     }
 
     /**
@@ -84,7 +84,8 @@ public class IGeyserMain {
             Class<?> graphicsEnvironment = Class.forName("java.awt.GraphicsEnvironment");
             Method isHeadless = graphicsEnvironment.getDeclaredMethod("isHeadless");
             return (Boolean)isHeadless.invoke(null);
-        } catch (Exception ex) { }
+        } catch (Exception ignored) {
+        }
 
         return true;
     }
